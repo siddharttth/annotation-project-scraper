@@ -141,3 +141,12 @@ def test_digest_always_reports_every_site_even_with_nothing_new():
 
     subject, doc = digest.build([_project("Label <cats>", posted=NOW)], {}, 24)
     assert subject.startswith("1 new annotation project ") and "Label &lt;cats&gt;" in doc
+
+
+def test_missing_mail_login_is_named_before_any_connection(monkeypatch):
+    from scraper import mailer
+    monkeypatch.setenv("SMTP_USER", "")      # how CI passes an unset secret
+    monkeypatch.delenv("SMTP_PASS", raising=False)
+
+    with pytest.raises(RuntimeError, match="SMTP_USER and SMTP_PASS not set"):
+        mailer.send("subject", "<p>body</p>")

@@ -10,8 +10,14 @@ def send(subject: str, html_body: str) -> None:
     # `or`, not a getenv default: CI passes unset secrets as empty strings.
     host = os.getenv("SMTP_HOST") or "smtp.gmail.com"
     port = int(os.getenv("SMTP_PORT") or "587")
-    user = os.environ["SMTP_USER"]
-    password = os.environ["SMTP_PASS"]
+    user = (os.getenv("SMTP_USER") or "").strip()
+    password = (os.getenv("SMTP_PASS") or "").strip()
+    # Checked here because an empty login reaches Gmail and comes back as an
+    # opaque "Connection unexpectedly closed".
+    missing = [k for k, v in (("SMTP_USER", user), ("SMTP_PASS", password)) if not v]
+    if missing:
+        raise RuntimeError(f"{' and '.join(missing)} not set — add the repository "
+                           f"secrets, or fill in .env locally (see SETUP.md)")
     to_addr = os.getenv("MAIL_TO") or user
 
     msg = EmailMessage()

@@ -81,20 +81,27 @@ Check your inbox. The first mail lists annotation projects posted in the last
 From now on GitHub runs it every day without you. Two things to know:
 
 - **GitHub starts scheduled jobs late**, sometimes by several hours. The
-  schedule in this repo is set about six hours early to compensate, aiming at
-  11:30 AM India time. Your mail may arrive earlier or later than that.
+  `cron` line in this repo is `11 0 * * *` (5:41 AM India time): it was set
+  about six hours early because runs on the original account were starting
+  six hours late, which lands the mail near 11:30 AM. Your account may see a
+  different delay, so watch when your first few mails arrive.
 - **GitHub pauses schedules on a public repo with no activity for 60 days.**
   It emails you first; re-enable the workflow from the Actions tab.
 
 To change the time, edit the `cron` line in
 [`.github/workflows/daily.yml`](.github/workflows/daily.yml). It is written in
-UTC. India is UTC+5:30, so subtract 5 hours 30 minutes:
+UTC. India is UTC+5:30, so subtract 5 hours 30 minutes. This table is the
+plain conversion, for when the job should **start**:
 
-| You want (IST) | Write (UTC) |
+| Start time (IST) | Write (UTC) |
 |---|---|
+| 5:41 AM (this repo's setting) | `11 0 * * *` |
 | 8:00 AM | `30 2 * * *` |
 | 11:30 AM | `0 6 * * *` |
 | 6:00 PM | `30 12 * * *` |
+
+If your mails keep arriving a steady number of hours late, move the start
+time earlier by that many hours.
 
 https://crontab.guru/ shows what any cron line means.
 
@@ -222,7 +229,7 @@ mail links to them so you can check them by hand.
 
 | What you see | Cause | Fix |
 |---|---|---|
-| Run is red, log says `KeyError: 'SMTP_USER'` | a secret is missing | add all three secrets, with these exact names |
+| Run is red, log says `SMTP_USER and SMTP_PASS not set` | a secret is missing or misnamed | add all three secrets, with these exact names |
 | `Username and Password not accepted` | normal Gmail password used | use the 16-character App Password, no spaces |
 | No App Password page | 2-Step Verification is off | turn it on first, then retry the link |
 | Run is green but no mail | landed in spam, or wrong `MAIL_TO` | check spam; re-enter the `MAIL_TO` secret |
