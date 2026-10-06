@@ -11,6 +11,9 @@ already sent, and mails the rest with a link to each.
 ~200 listings  ->  ~16 on topic  ->  2 posted in the last 24h  ->  your inbox
 ```
 
+> **Setting it up for yourself?** Follow **[SETUP.md](SETUP.md)** — a
+> step-by-step guide with every link you need.
+
 ## Sites
 
 | Site | How it is read | Posted date |
