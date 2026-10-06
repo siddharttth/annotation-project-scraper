@@ -2,12 +2,12 @@ name: daily annotation digest
 
 on:
   schedule:
-    # Target: in the inbox by 08:00 IST. GitHub's scheduler is best-effort and
-    # has been starting this account's jobs about 6 hours late, so the trigger
-    # is set for 02:00 IST (20:30 UTC the day before). On a day GitHub runs it
-    # on time the mail simply arrives early. Repeats are impossible either way:
-    # seen.json records what was already sent.
-    - cron: "30 20 * * *"
+    # Target: 11:30 IST every day. GitHub's scheduler has been starting this
+    # account's jobs about 6 hours late (5h55 to 6h51 on 3-5 Oct 2026), so the
+    # trigger is 05:41 IST == 00:11 UTC. If the delay ever goes away the mail
+    # simply arrives early; move the cron to "0 6 * * *" then. Repeats are
+    # impossible either way: seen.json records what was already sent.
+    - cron: "11 0 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
