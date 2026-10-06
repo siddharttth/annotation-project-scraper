@@ -1,0 +1,38 @@
+# annotation-project-scraper configuration.
+
+# Only listings posted within this many hours are mailed. Sites that give a
+# date without a time (the two tender sites) count today and yesterday.
+fresh_hours: 24
+
+# Search terms sent to the sites that have a search box (Freelancer, Workana).
+search_terms:
+  - annotation
+  - data annotation
+  - data labeling
+  - image annotation
+  - ai training data
+
+# A listing is kept when its title or summary matches at least one of these
+# (regex, case-insensitive). The sites' own searches are loose, so this is
+# what actually keeps the mail on topic.
+keywords:
+  - 'annotat'                        # annotation, annotator, annotate
+  - 'label(l)?ing'
+  - '\bdata label'
+  - '\b(bounding box|segmentation|keypoint|lidar|point cloud)\b'
+  - '\b(image|video|audio|text) tagging\b'
+  - '\b(ai|ml|llm|model)\s+(data\s+)?(training|trainer|evaluation|evaluator)\b'
+  - '\btraining data\b'
+  - '\brlhf\b'
+  - '\b(data collection|dataset (creation|collection))\b'
+  - '\btranscription\b'
+
+# ...and none of these.
+exclude: []
+
+# Leave unset to read every supported site, or list a subset:
+#   freelancer, truelancer, workana, samsstc, tendernews
+# sources: [freelancer, workana]
+
+seen_file: seen.json
+digest_file: out/digest.html
