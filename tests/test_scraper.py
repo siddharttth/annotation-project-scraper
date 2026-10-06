@@ -18,7 +18,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scraper import digest
 from scraper.select import Seen, is_fresh, on_topic
 from scraper.sources import (Project, parse_freelancer, parse_samsstc, parse_tendernews,
-                             parse_truelancer, parse_workana, relative_date)
+                             parse_truelancer, parse_truelancer_api, parse_workana,
+                             relative_date)
 
 NOW = datetime.now(timezone.utc)
 KEYWORDS = ["annotat", r"label(l)?ing"]
@@ -38,14 +39,16 @@ def test_freelancer_maps_epoch_seconds_budget_and_url():
 
 
 def test_truelancer_reads_the_embedded_page_data():
-    data = {"props": {"pageProps": {"data": {"projects": {"data": [{
+    api = {"projects": {"data": [{
         "id": 9, "title": "MRI Annotation", "created_at": "2026-08-20T16:48:55.000000Z",
         "link": "https://www.truelancer.com/freelance-project/mri-9",
-        "description": "<p>Label &amp; review</p>"}]}}}}}
+        "budget": 15, "currency": "USD", "description": "<p>Label &amp; review</p>"}]}}
+    data = {"props": {"pageProps": {"data": api}}}
     page = f'<script id="__NEXT_DATA__" type="application/json">{json.dumps(data)}</script>'
     (p,) = parse_truelancer(page)
 
-    assert p.summary == "Label & review"
+    assert parse_truelancer_api(api) == [p]
+    assert (p.summary, p.budget) == ("Label & review", "USD 15")
     assert p.posted == datetime(2026, 8, 20, 16, 48, 55, tzinfo=timezone.utc)
     with pytest.raises(ValueError):
         parse_truelancer("<html>layout changed</html>")

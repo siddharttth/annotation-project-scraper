@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import json
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
@@ -79,12 +80,17 @@ _NEXT_DATA = re.compile(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', re.S)
 
 
 def parse_truelancer(page: str, now: datetime | None = None) -> list[Project]:
+    """The listing page, which embeds the same rows the API returns."""
     m = _NEXT_DATA.search(page or "")
     if not m:
         raise ValueError("truelancer: listing data not found in page")
     data = json.loads(m.group(1))
-    rows = (((data.get("props") or {}).get("pageProps") or {}).get("data") or {}) \
-        .get("projects", {}).get("data") or []
+    return parse_truelancer_api(((data.get("props") or {}).get("pageProps") or {})
+                                .get("data") or {})
+
+
+def parse_truelancer_api(body: Any, now: datetime | None = None) -> list[Project]:
+    rows = ((body or {}).get("projects") or {}).get("data") or []
     out = []
     for p in rows:
         posted = None
@@ -213,8 +219,16 @@ def parse_tendernews(page: str, now: datetime | None = None) -> list[Project]:
 
 # ------------------------------------------------------------------- fetching --
 
+RETRY_STATUS = (429, 500, 502, 503)
+RETRY_WAITS = (5, 20)   # seconds between attempts
+
+
 def _get(url: str, session: requests.Session) -> requests.Response:
-    r = session.get(url, headers=UA, timeout=TIMEOUT)
+    for wait in (*RETRY_WAITS, None):
+        r = session.get(url, headers=UA, timeout=TIMEOUT)
+        if r.status_code not in RETRY_STATUS or wait is None:
+            break
+        time.sleep(wait)
     if r.status_code != 200:
         raise ValueError(f"HTTP {r.status_code}")
     return r
@@ -232,13 +246,21 @@ def _workana_urls(queries: list[str]) -> list[str]:
 # name -> (urls for these search terms, parser, body is JSON?)
 SOURCES: dict[str, tuple[Callable[[list[str]], list[str]], Callable, bool]] = {
     "freelancer": (_freelancer_urls, parse_freelancer, True),
-    "truelancer": (lambda q: ["https://www.truelancer.com/freelance-ai-data-annotation-jobs"],
-                   parse_truelancer, False),
+    "truelancer": (lambda q: ["https://api.truelancer.com/api/v1/projects"
+                              "?skillName=ai-data-annotation&listType=skill&page=1"],
+                   parse_truelancer_api, True),
     "workana": (_workana_urls, parse_workana, False),
     "samsstc": (lambda q: ["https://www.samsstc.com/rfp-tender/rfp-list"],
                 parse_samsstc, False),
     "tendernews": (lambda q: ["https://www.tendernews.com/tenders/latest-tender/"
                               "ai-data-annotation.html"], parse_tendernews, False),
+}
+
+# Tried when the primary read of a source fails. Truelancer rate-limits its
+# API by address (HTTP 429 from cloud runners); the page carries the same rows.
+FALLBACK: dict[str, tuple[Callable[[list[str]], list[str]], Callable, bool]] = {
+    "truelancer": (lambda q: ["https://www.truelancer.com/freelance-ai-data-annotation-jobs"],
+                   parse_truelancer, False),
 }
 
 # Listed by the user, but projects are only visible after signing in, so there
@@ -256,18 +278,20 @@ def fetch_all(queries: list[str], only: list[str] | None = None
     session = requests.Session()
     projects: list[Project] = []
     report: dict[str, str] = {}
-    for name, (urls, parser, is_json) in SOURCES.items():
+    for name, primary in SOURCES.items():
         if only and name not in only:
             continue
         found: dict[str, Project] = {}
-        try:
-            for url in urls(queries):
-                r = _get(url, session)
-                for p in parser(r.json() if is_json else r.text, now):
-                    found.setdefault(p.key, p)
-            report[name] = f"{len(found)} listed"
-        except Exception as e:  # site down, layout changed, blocked
-            report[name] = f"failed ({type(e).__name__}: {str(e)[:80]})"
+        for urls, parser, is_json in filter(None, (primary, FALLBACK.get(name))):
+            try:
+                for url in urls(queries):
+                    r = _get(url, session)
+                    for p in parser(r.json() if is_json else r.text, now):
+                        found.setdefault(p.key, p)
+                report[name] = f"{len(found)} listed"
+                break
+            except Exception as e:  # site down, layout changed, blocked
+                report[name] = f"failed ({type(e).__name__}: {str(e)[:80]})"
         projects.extend(found.values())
         print(f"  {name:<11} {report[name]}")
     return projects, report
